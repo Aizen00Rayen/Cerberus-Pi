@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     "reports",
     "engine",
     "auth_audit",  # Phase 10: login auditing + rate-limited admin auth
+    "intelligence",  # Phase 11: AI anomaly detection (additive module)
 ]
 
 MIDDLEWARE = [
@@ -102,17 +103,27 @@ TEMPLATES = [
 ]
 
 # --- Database: PostgreSQL via Unix socket only (Constraint #6) ---------------
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": env("POSTGRES_DB", "cerberus"),
-        "USER": env("POSTGRES_USER", "cerberus"),
-        "PASSWORD": env("POSTGRES_PASSWORD", ""),
-        # HOST as a path => libpq connects over the Unix socket, not TCP.
-        "HOST": env("POSTGRES_HOST", "/var/run/postgresql"),
-        "PORT": env("POSTGRES_PORT", ""),
+# CERBERUS_DB_SQLITE=1 switches to a local SQLite file — for off-Pi development
+# and CI only (no PostgreSQL on a Windows dev box). Never set in production.
+if env("CERBERUS_DB_SQLITE", "0") == "1":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": env("CERBERUS_SQLITE_PATH", str(BASE_DIR / "dev.sqlite3")),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": env("POSTGRES_DB", "cerberus"),
+            "USER": env("POSTGRES_USER", "cerberus"),
+            "PASSWORD": env("POSTGRES_PASSWORD", ""),
+            # HOST as a path => libpq connects over the Unix socket, not TCP.
+            "HOST": env("POSTGRES_HOST", "/var/run/postgresql"),
+            "PORT": env("POSTGRES_PORT", ""),
+        }
+    }
 
 # --- Channels (WebSockets) over Redis localhost ------------------------------
 REDIS_URL = env("REDIS_URL", "redis://127.0.0.1:6379/0")
@@ -202,6 +213,20 @@ SURICATA_EVE = CERBERUS_LOGDIR / "suricata" / "eve.json"
 SNORT_LOGDIR = CERBERUS_LOGDIR / "snort"
 IPFS_API = env("IPFS_API", "/ip4/127.0.0.1/tcp/5001")
 NVD_API_KEY = env("NVD_API_KEY", "")
+
+# --- Phase 11: AI anomaly detection ------------------------------------------
+# Model artifacts + training data live outside the Django app so they survive
+# code redeploys. Default under CERBERUS_ROOT; override with INTELLIGENCE_ROOT
+# (used in CI/dev where /opt/cerberus is not writable).
+from pathlib import Path as _Path  # noqa: E402
+
+INTELLIGENCE_ROOT = _Path(env("INTELLIGENCE_ROOT", str(CERBERUS_ROOT / "intelligence")))
+INTELLIGENCE_MODELS = INTELLIGENCE_ROOT / "models"
+INTELLIGENCE_TRAINING_DATA = INTELLIGENCE_ROOT / "training_data"
+# Bundled seed datasets ship inside the app package.
+INTELLIGENCE_DATASETS = BASE_DIR / "intelligence" / "datasets"
+ML_BASELINE_HOURS = int(env("ML_BASELINE_HOURS", "72"))
+ML_TRAINING_LOG = CERBERUS_LOGDIR / "training.log"
 LLM_PROVIDER = env("LLM_PROVIDER", "")
 OPENAI_API_KEY = env("OPENAI_API_KEY", "")
 OLLAMA_HOST = env("OLLAMA_HOST", "http://127.0.0.1:11434")

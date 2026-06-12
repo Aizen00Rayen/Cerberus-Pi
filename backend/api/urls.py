@@ -31,6 +31,8 @@ router.register(r"engine/status", EngineStatusViewSet, basename="engine")
 
 urlpatterns = [
     path("", include(router.urls)),
+    # Phase 11: AI anomaly detection (additive module).
+    path("intelligence/", include("intelligence.urls")),
     path("auth/csrf/", auth_views.csrf),
     path("auth/login/", auth_views.login_view),
     path("auth/logout/", auth_views.logout_view),

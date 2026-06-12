@@ -119,7 +119,21 @@ def persist_and_broadcast(fields: dict):
     )
     threat = Threat.objects.create(**fields)
     _broadcast(threat)
+    _run_ml_hook(threat)
     return threat
+
+
+def _run_ml_hook(threat):
+    """
+    Phase 11 integration point. Runs ML anomaly analysis on the freshly-created
+    Threat. Imported lazily and fully guarded so the intelligence app remains an
+    optional, additive module — the core parser works with or without it.
+    """
+    try:
+        from intelligence.integration import run_ml_analysis
+        run_ml_analysis(threat)
+    except Exception as exc:  # noqa: BLE001 — never let ML affect IDS ingestion
+        logger.debug("ML hook skipped: %s", exc)
 
 
 def _broadcast(threat):
