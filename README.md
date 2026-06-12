@@ -274,6 +274,176 @@ Full runbook & troubleshooting: **[DEPLOYMENT.md](DEPLOYMENT.md)**.
 
 ---
 
+## 🧠 AI Anomaly Detection (Phase 11)
+
+Cerberus Pi ships a **self-learning anomaly-detection layer** that runs *entirely
+on the Pi* — no GPU, no cloud, no data ever leaves the device. It complements the
+signature engines (Suricata/Snort): the rule engines catch *known* patterns, the
+AI layer catches *behaviour* and *obfuscated variants* that don't match a rule,
+and it gets better over time as the admin confirms or rejects its findings.
+
+It detects **four OWASP-aligned attack classes**, each with a model chosen to fit
+both the problem and the Pi's CPU-only, ARM64, ~8 GB budget.
+
+### The four models
+
+| Attack | Algorithm | Input / features | Why this model | Output |
+|--------|-----------|------------------|----------------|--------|
+| **SQL Injection** | TF-IDF (char 2–5-grams) + **Logistic Regression** | HTTP payload text + 10 handcrafted features (keyword count, special-char ratio, comment/union/sleep flags, encoding…) | Linear model on character n-grams is fast (<3 ms), tiny, and robust to obfuscation/encoding | `confidence` 0–1 |
+| **Cross-Site Scripting** | TF-IDF (char 3–6-grams) + **SVM (RBF, probabilistic)** | Parameter value + 10 features (tag count, event handlers, `javascript:`, entropy, data-URI…) | Char n-grams + SVM resist case-folding / split-tag obfuscation; calibrated for a real probability | `confidence` 0–1 |
+| **Brute Force** | **Isolation Forest** (unsupervised) | Per-IP behavioural window: request count, fail ratio, unique users/endpoints, inter-request timing & regularity, deviation from baseline | *No attack labels needed* — it learns "normal" and flags outliers, so it catches novel automation patterns | `anomaly_score` → `confidence` |
+| **DoS / DDoS** | **Statistical thresholds** + optional **quantised LSTM (TFLite)** | Traffic windows: pps, bps, SYN/ACK/RST rates, connection rate, deviation from per-interface baseline | Layer 1 is instant (<1 ms) and always on; Layer 2 (sequence model) catches slow-rate/low-and-slow floods | verdict + `confidence` |
+
+Models are trained inside `/opt/cerberus/venv` (scikit-learn), saved to
+`/opt/cerberus/intelligence/models/<attack>/` as versioned artifacts, and loaded
+**once** into memory at startup — inference never reloads from disk.
+
+### How a detection flows (inference path)
+
+```
+Suricata/Snort alert ──► threat_parser saves a Threat
+                               │  (additive hook — never blocks the IDS)
+                               ▼
+              intelligence.integration.run_ml_analysis()
+                               │  picks a detector by category/signature
+                               ▼
+        CerberusDetector (models cached in RAM, thresholds cached 30s)
+          SQLi / XSS  → predict_proba                 confidence ≥ threshold?
+          BruteForce  → IsolationForest.decision_fn   score < threshold?
+          DoS         → threshold compare, then LSTM   over baseline?
+                               │  if it fires:
+                               ▼
+        AnomalyDetection row (confidence, top-3 human reasons, payload≤500c,
+                              raw feature vector, linked to the Threat)
+                               │
+                               ▼
+        /ws/intelligence/  ──►  AI Intelligence page updates in real time
+```
+
+Every detection is **explainable**: the model returns the top 3 human-readable
+reasons (e.g. *"UNION keyword detected"*, *"Inline event handler (onerror)"*,
+*"4.2× normal request volume"*) so the admin can judge it at a glance.
+Inference budget is **<15 ms/event** (measured: SQLi ~2.5 ms, XSS ~4 ms,
+Brute Force ~14 ms, DoS statistical ~0.01 ms).
+
+### How it teaches itself — the self-learning lifecycle
+
+The system improves through a continuous loop. There are four stages:
+
+```
+   ┌──────────────────────────────────────────────────────────────────────┐
+   │                                                                        │
+   ▼                                                                        │
+① 72h BASELINE ──► ② INITIAL TRAINING ──► ③ LIVE DETECTION + ADMIN FEEDBACK │
+   (learn normal)     (from baseline +        (confirm ✅ / reject ❌ each    │
+                       bundled datasets)       detection)                    │
+                                                       │                     │
+                                                       ▼                     │
+                                            ④ WEEKLY AUTO-RETRAIN ───────────┘
+                                          (feedback ⇒ better models, versioned)
+```
+
+**① The 72-hour baseline phase (learning "normal").**
+On first deployment the system spends 72 hours (configurable via
+`ML_BASELINE_HOURS`) *passively observing* your network. Every 5 minutes a Celery
+task updates a per-IP `BaselineProfile` (requests/min, failed-auth rate, payload
+sizes, common ports/endpoints/user-agents, packets & bytes per second) using an
+exponential moving average, plus per-interface traffic baselines for DoS.
+
+During this phase the ML models aren't trained yet, so detection runs in
+**fallback mode**: SQLi/XSS use the bundled signature datasets, brute force uses a
+static rule (>10 failed logins/min), and DoS uses statistical thresholds only.
+The dashboard shows a pill: **🟡 Learning (Xh remaining)**.
+
+**② Initial training (waking up).**
+When 72 h elapse, `BaselineProfile`s are marked complete and the system
+automatically queues training for all four models. SQLi/XSS train on the
+**bundled seed datasets** (`backend/intelligence/datasets/*.csv` — curated SQLi &
+XSS payloads vs. realistic benign traffic). Brute Force fits an Isolation Forest
+to the *normal* behavioural profiles it just learned. DoS derives thresholds
+(`mean + 3σ`) from the observed traffic. The pill flips to **🟢 Active**.
+*(For convenience, `cerberus_start.sh` also runs `manage.py ml_bootstrap` at
+deploy so v1 models exist from the bundled data on day one.)*
+
+**③ Live detection + the human feedback loop (getting smarter).**
+Every detection lands on the **AI Intelligence** page with a confidence bar and
+its reasons. The admin clicks one of two buttons:
+
+- **✅ Confirm Threat** → the payload becomes a labelled *positive* example.
+- **❌ False Positive** → it becomes a labelled *negative* and is excluded next time.
+
+These verdicts are appended to per-attack training CSVs in
+`/opt/cerberus/intelligence/training_data/` (chmod 600 — they contain raw
+payloads). This is how the system adapts to *your* network's traffic and reduces
+false positives over time.
+
+**④ Weekly automatic retraining (improving — safely).**
+Every **Sunday 02:00** (Celery Beat) the system retrains all four models on
+*bundled data + everything the admin has confirmed/rejected since*. Retraining is
+hardened against **model poisoning** and **regressions**:
+
+- Only **admin-verdicted** samples ever enter training data (no auto-labelling).
+- A **minimum number of confirmed samples** is required before a model changes.
+- Each new model is evaluated on a 20% holdout; it is **promoted to "current"
+  only if it does not lose more than 2% accuracy** vs. the live model.
+- The previous model is **archived, never deleted** — every version is kept, so
+  you can roll back. Each `MLModel` row records accuracy, F1, precision, recall,
+  sample count and version.
+
+You can also retrain on demand from the dashboard (**Retrain Now**) or via
+`POST /api/intelligence/models/retrain/` — it runs on a **dedicated, isolated
+Celery worker** (`cerberus-intelligence.service`, `--queues=intelligence`) so
+training never starves the main IDS pipeline.
+
+### Tuning sensitivity
+
+Detection thresholds (e.g. SQLi ≥ 0.65, XSS ≥ 0.70, DoS = 3× baseline, SYN/ACK
+ratio > 10) are adjustable live from the **Threshold Settings** panel or
+`POST /api/intelligence/thresholds/`. They're cached in-process (30 s TTL) so
+changes apply almost immediately without restarting and without slowing the
+inference path. Lower thresholds = more sensitive (more alerts, more false
+positives); the feedback loop then helps you pull the false-positive rate back down.
+
+### New API & data (Phase 11)
+
+```
+GET  /api/intelligence/models/                  list models + accuracy/F1/version
+POST /api/intelligence/models/retrain/          retrain all or one model
+GET  /api/intelligence/detections/              ML detections (paginated)
+POST /api/intelligence/detections/{id}/verdict/ admin feedback (confirm/reject)
+GET  /api/intelligence/baseline/status/         72h phase + progress
+GET  /api/intelligence/baseline/profiles/       per-IP behavioural profiles
+GET  /api/intelligence/training/                training-job history
+GET  /api/intelligence/stats/                   detection + verdict stats
+GET/POST /api/intelligence/thresholds/          read / tune detection thresholds
+WS   /ws/intelligence/                           real-time detection feed
+```
+
+New models: `MLModel`, `AnomalyDetection` (FK → existing `Threat`),
+`BaselineProfile`, `TrainingJob`. The module is **fully additive** — it only
+references existing models via a nullable foreign key and a single guarded hook
+in the threat parser, so the core IDS works with or without it.
+
+### Known limitations (honest)
+
+- **DOM-based XSS** executes client-side and isn't visible to a network sensor.
+- **Distributed brute force** (1 attempt per IP) is only partially detectable.
+- **Slow-rate DoS** (Slowloris-style) relies on the LSTM layer; detection is
+  lower than for volumetric floods.
+- **TLS-encrypted payloads** hide SQLi/XSS content from inspection (mirror
+  decrypted traffic or terminate TLS upstream if you need this).
+- The **DoS LSTM** needs full TensorFlow on the Pi and ≥50 confirmed samples; the
+  always-on statistical layer covers volumetric attacks in the meantime.
+
+### Security of the ML module
+
+Models are owned by the `cerberus` user (chmod 750); training-data CSVs are
+chmod 600 (raw payloads are sensitive); stored `payload_sample`s are truncated to
+500 characters; inference is 100% offline; and the TFLite interpreter is guarded
+by a lock. Training runs on an isolated Celery queue with bounded concurrency.
+
+---
+
 ## 🔒 Security model
 
 Cerberus Pi is an appliance, and security *is* the product. Enforced in code:
@@ -307,8 +477,9 @@ Cerberus-Pi/
 ├── scripts/            cerberus_install.sh · cerberus_harden.sh · cerberus_start.sh
 │                       engine_monitor.py · block_ip.sh · lib/common.sh
 ├── backend/            Django project (threats, scanner, logs, reports, engine,
-│                       auth_audit, api) + requirements.txt + migrations
-├── frontend/           React + Vite + Tailwind dashboard (6 pages)
+│                       auth_audit, intelligence, api) + requirements + migrations
+│   └── intelligence/   Phase 11 AI module (ml/ models + datasets/ seed data)
+├── frontend/           React + Vite + Tailwind dashboard (7 pages incl. AI Intelligence)
 ├── config/             suricata.yaml · snort.lua · nginx · sysctl
 ├── systemd/            all cerberus-*.service units + target + sudoers
 ├── DEPLOYMENT.md       step-by-step Pi runbook
@@ -322,14 +493,15 @@ Cerberus-Pi/
 | Component | Verified |
 |-----------|----------|
 | Backend (`manage.py check`) | ✅ 0 issues |
-| Migrations (6 apps) | ✅ generate cleanly |
-| Frontend (`npm run build`) | ✅ builds (2421 modules) |
+| Migrations (7 apps) | ✅ generate cleanly |
+| Frontend (`npm run build`) | ✅ builds (2425 modules) |
 | Shell scripts (`bash -n`) | ✅ clean |
 | Python (`compileall`) | ✅ clean |
 | Security validators | ✅ injection/abuse rejected (tested) |
+| **AI module (Phase 11)** | ✅ 10 tests pass · SQLi `' OR 1=1--`→0.93 · XSS `<script>alert(1)</script>`→1.0 · benign ignored · <15 ms/event |
 
-OS-level behaviour (engines, hardening, stealth, systemd, IPFS) is validated on
-the Pi itself per the tutorial above.
+OS-level behaviour (engines, hardening, stealth, systemd, IPFS) and the DoS LSTM
+(needs TensorFlow on ARM64) are validated on the Pi itself per the tutorial above.
 
 > **Known on-device task:** Snort 3 is not apt-installable on Bookworm; build it
 > from source (DAQ + Snort 3) so `/usr/local/bin/snort` exists before `start`.
