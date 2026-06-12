@@ -9,6 +9,7 @@ import Scanner from "./pages/Scanner.jsx";
 import LogVault from "./pages/LogVault.jsx";
 import Reports from "./pages/Reports.jsx";
 import Settings from "./pages/Settings.jsx";
+import IntelligencePage from "./pages/IntelligencePage.jsx"; // Phase 11
 
 export default function App() {
   const [auth, setAuth] = useState(null); // null=loading, false=anon, {}=user
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/threats" element={<Threats />} />
         <Route path="/scanner" element={<Scanner />} />
+        <Route path="/intelligence" element={<IntelligencePage />} />
         <Route path="/logs" element={<LogVault />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />

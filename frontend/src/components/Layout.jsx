@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import {
-  Shield, LayoutDashboard, Bug, Radar, Archive, FileText, Settings as Cog, LogOut,
+  Shield, LayoutDashboard, Bug, Radar, Archive, FileText, Settings as Cog, LogOut, BrainCircuit,
 } from "lucide-react";
 import { logout } from "../api/client.js";
 
@@ -8,6 +8,7 @@ const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/threats", label: "Threats", icon: Bug },
   { to: "/scanner", label: "Scanner", icon: Radar },
+  { to: "/intelligence", label: "AI Intelligence", icon: BrainCircuit }, // Phase 11
   { to: "/logs", label: "Log Vault", icon: Archive },
   { to: "/reports", label: "Reports", icon: FileText },
   { to: "/settings", label: "Settings", icon: Cog },
