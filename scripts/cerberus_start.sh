@@ -23,6 +23,7 @@ CERBERUS_SERVICES=(
   cerberus-ipfs
   cerberus-suricata cerberus-snort
   cerberus-backend cerberus-celery cerberus-celerybeat
+  cerberus-intelligence                       # Phase 11: isolated ML worker
   cerberus-engine-monitor
   cerberus-parser@suricata cerberus-parser@snort
 )
@@ -139,12 +140,20 @@ do_start() {
 
   # Ordered cerberus units.
   local ordered=(cerberus-ipfs cerberus-suricata cerberus-snort cerberus-backend \
-                 cerberus-celery cerberus-celerybeat cerberus-engine-monitor \
+                 cerberus-celery cerberus-celerybeat cerberus-intelligence \
+                 cerberus-engine-monitor \
                  "cerberus-parser@suricata" "cerberus-parser@snort")
   for s in "${ordered[@]}"; do
     systemctl enable --now "$s" >/dev/null 2>&1
     if wait_healthy "$s" 25; then ok "$s"; else err "$s failed to become active"; log_error "start failed: $s"; fi
   done
+
+  # Phase 11: train v1 ML models from bundled datasets if none exist yet (idempotent).
+  hdr "AI models (Phase 11)"
+  sudo -u cerberus bash -c "cd ${CERBERUS_ROOT}/backend && \
+    set -a; . ${ENVF}; set +a; \
+    ${CERBERUS_ROOT}/venv/bin/python manage.py ml_bootstrap" >>"$INSTALL_LOG" 2>&1 \
+    && ok "ML models bootstrapped" || warn "ml_bootstrap reported issues (see $INSTALL_LOG)"
 
   systemctl enable cerberus-ids.target >/dev/null 2>&1 || true
   nginx -t >>"$INSTALL_LOG" 2>&1 && systemctl restart nginx && ok "nginx" || { err "nginx config test failed"; log_error "nginx -t failed"; }

@@ -1,0 +1,23 @@
+[Unit]
+Description=Cerberus Pi — AI intelligence Celery worker (Phase 11.8, isolated queue)
+After=redis-server.service postgresql.service cerberus-backend.service
+Wants=redis-server.service
+
+[Service]
+Type=simple
+User=cerberus
+Group=cerberus
+WorkingDirectory=/opt/cerberus/backend
+EnvironmentFile=/opt/cerberus/secrets/.env
+# Dedicated worker consuming ONLY the 'intelligence' queue so ML training/inference
+# is isolated from the main worker (scans, reports, archival). concurrency=1 keeps
+# RAM bounded on the Pi during model training.
+ExecStart=/opt/cerberus/venv/bin/celery -A cerberus worker \
+    --queues=intelligence --concurrency=1 --loglevel=info -n intelligence@%%h
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+ReadWritePaths=/opt/cerberus/logs /opt/cerberus/intelligence
+
+[Install]
+WantedBy=multi-user.target
