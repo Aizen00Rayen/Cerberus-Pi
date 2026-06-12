@@ -1,0 +1,21 @@
+# Cerberus Pi backend — pinned Python dependencies (Python 3.11+, ARM64)
+Django==5.0.6
+djangorestframework==3.15.1
+django-cors-headers==4.4.0
+django-filter==24.2
+channels==4.1.0
+channels-redis==4.2.0
+daphne==4.1.2
+psycopg2-binary==2.9.9
+redis==5.0.7
+celery==5.4.0
+django-celery-beat==2.6.0
+python-nmap==0.7.1
+scapy==2.5.0
+reportlab==4.2.2
+weasyprint==62.3
+cryptography==42.0.8
+pycryptodome==3.20.0
+python-dotenv==1.0.1
+gunicorn==22.0.0
+requests==2.32.3

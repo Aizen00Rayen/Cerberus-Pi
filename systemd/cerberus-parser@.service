@@ -1,0 +1,22 @@
+[Unit]
+Description=Cerberus Pi — threat parser for %i engine (Phase 5.4)
+After=cerberus-backend.service cerberus-ids.target redis-server.service
+Wants=cerberus-backend.service
+# Templated unit: enable per engine, e.g.
+#   systemctl enable --now cerberus-parser@suricata.service
+#   systemctl enable --now cerberus-parser@snort.service
+
+[Service]
+Type=simple
+User=cerberus
+Group=cerberus
+WorkingDirectory=/opt/cerberus/backend
+EnvironmentFile=/opt/cerberus/secrets/.env
+ExecStart=/opt/cerberus/venv/bin/python manage.py run_parser --engine %i
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+ReadWritePaths=/opt/cerberus/logs
+
+[Install]
+WantedBy=multi-user.target

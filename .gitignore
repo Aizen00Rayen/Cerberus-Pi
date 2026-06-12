@@ -1,0 +1,29 @@
+# Secrets & runtime — NEVER commit
+.env
+secrets/
+*.key
+*.crt
+*.luks
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+.checkvenv/
+*.sqlite3
+staticfiles/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+npm-debug.log*
+
+# Logs & generated artefacts
+logs/
+reports/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

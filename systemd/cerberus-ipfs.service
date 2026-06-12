@@ -1,0 +1,18 @@
+[Unit]
+Description=Cerberus Pi — private IPFS (kubo) node
+After=network.target
+
+[Service]
+Type=simple
+User=cerberus
+Group=cerberus
+Environment=IPFS_PATH=/opt/cerberus/.ipfs
+# Private node: API + gateway bound to localhost only; swarm announce disabled.
+# These are enforced by cerberus_start.sh on first init (ipfs config edits).
+ExecStart=/usr/local/bin/ipfs daemon --routing=dhtclient
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

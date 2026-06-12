@@ -1,0 +1,121 @@
+%YAML 1.1
+---
+# =============================================================================
+# Cerberus Pi — Suricata configuration (Phase 3.1)
+# Install to /etc/suricata/suricata.yaml. This is a trimmed, opinionated config
+# focused on passive monitoring of eth0 with EVE JSON output for the parser.
+#
+# HOME_NET is auto-detected by cerberus_start.sh and written in before launch
+# (it substitutes the __HOME_NET__ token). af-packet on the monitored interface.
+# =============================================================================
+
+vars:
+  address-groups:
+    HOME_NET: "__HOME_NET__"          # e.g. [192.168.1.0/24] — filled at start
+    EXTERNAL_NET: "!$HOME_NET"
+    HTTP_SERVERS: "$HOME_NET"
+    DNS_SERVERS: "$HOME_NET"
+  port-groups:
+    HTTP_PORTS: "80"
+    SSH_PORTS: "22"
+
+default-log-dir: /opt/cerberus/logs/suricata/
+
+# --- Capture: passive af-packet on eth0 (monitored interface) ----------------
+af-packet:
+  - interface: eth0
+    cluster-id: 99
+    cluster-type: cluster_flow
+    defrag: yes
+    use-mmap: yes
+    tpacket-v3: yes
+    # Passive: we never inject. IPS mode (NFQueue) is configured separately below
+    # and only enabled when the operator opts in via cerberus_start.sh --ips.
+
+# --- IPS mode (optional, NFQueue) --------------------------------------------
+# Enable by running Suricata with -q 0 and inserting an iptables NFQUEUE rule.
+# Disabled by default — Cerberus ships as passive IDS unless explicitly armed.
+nfqueue:
+  mode: accept
+  fail-open: yes
+
+# --- EVE JSON: the single source of truth for the threat parser --------------
+outputs:
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: eve.json
+      pcap-file: false
+      community-id: true
+      types:
+        - alert:
+            payload: yes
+            payload-printable: yes
+            metadata: yes
+            http-body: yes
+        - flow
+        - dns
+        - http:
+            extended: yes
+        - tls:
+            extended: yes
+        - smtp
+        - ssh
+        - files:
+            force-magic: no
+        - stats:
+            totals: yes
+            threads: no
+  - stats:
+      enabled: yes
+      filename: stats.log
+      interval: 30
+
+# --- Logging -----------------------------------------------------------------
+logging:
+  default-log-level: notice
+  outputs:
+    - console:
+        enabled: no
+    - file:
+        enabled: yes
+        level: info
+        filename: /opt/cerberus/logs/suricata/suricata.log
+
+# --- App layer / detection ---------------------------------------------------
+app-layer:
+  protocols:
+    tls:
+      enabled: yes
+    http:
+      enabled: yes
+    ssh:
+      enabled: yes
+    dns:
+      tcp:
+        enabled: yes
+      udp:
+        enabled: yes
+
+# --- Rules (managed by suricata-update: ET Open + PT Research) ----------------
+default-rule-path: /var/lib/suricata/rules
+rule-files:
+  - suricata.rules
+
+classification-file: /etc/suricata/classification.config
+reference-config-file: /etc/suricata/reference.config
+
+# --- Performance tuned for the Pi 5 (4 cores) --------------------------------
+threading:
+  set-cpu-affinity: no
+  detect-thread-ratio: 1.0
+
+flow:
+  memcap: 128mb
+  hash-size: 65536
+  prealloc: 10000
+
+stream:
+  memcap: 256mb
+  reassembly:
+    memcap: 256mb

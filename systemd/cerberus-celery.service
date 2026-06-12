@@ -1,0 +1,18 @@
+[Unit]
+Description=Cerberus Pi — Celery worker (scans, report generation)
+After=redis-server.service postgresql.service
+Wants=redis-server.service
+
+[Service]
+Type=simple
+User=cerberus
+Group=cerberus
+WorkingDirectory=/opt/cerberus/backend
+EnvironmentFile=/opt/cerberus/secrets/.env
+ExecStart=/opt/cerberus/venv/bin/celery -A cerberus worker --loglevel=info --concurrency=2
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

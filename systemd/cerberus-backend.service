@@ -1,0 +1,25 @@
+[Unit]
+Description=Cerberus Pi — Django/Daphne ASGI server
+After=postgresql.service redis-server.service
+Wants=postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=cerberus
+Group=cerberus
+WorkingDirectory=/opt/cerberus/backend
+EnvironmentFile=/opt/cerberus/secrets/.env
+RuntimeDirectory=cerberus
+RuntimeDirectoryPreserve=yes
+# Daphne binds a Unix socket; Nginx proxies to it (no TCP exposure).
+ExecStartPre=/opt/cerberus/venv/bin/python manage.py migrate --noinput
+ExecStartPre=/opt/cerberus/venv/bin/python manage.py collectstatic --noinput
+ExecStart=/opt/cerberus/venv/bin/daphne -u /run/cerberus/daphne.sock cerberus.asgi:application
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/cerberus/logs /opt/cerberus/reports /opt/cerberus/backend/staticfiles /run/cerberus
+
+[Install]
+WantedBy=multi-user.target

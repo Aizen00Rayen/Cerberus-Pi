@@ -1,0 +1,22 @@
+# Cerberus Pi — restricted sudoers for the unprivileged 'cerberus' user.
+# Install to /etc/sudoers.d/cerberus  (chmod 440, validate with visudo -c).
+#
+# Grants ONLY the two narrow privileged actions the app needs:
+#   1. Block/unblock source IPs via the dedicated helper (Phase 5.3).
+#   2. start/stop/restart/status the two engine units (Phase 5.3 / 3.3).
+# No general root, no shell — everything else stays denied (Constraint #4).
+
+Cmnd_Alias CERBERUS_BLOCK = /opt/cerberus/scripts/block_ip.sh
+Cmnd_Alias CERBERUS_ENGINE = \
+    /usr/bin/systemctl start cerberus-suricata.service, \
+    /usr/bin/systemctl stop cerberus-suricata.service, \
+    /usr/bin/systemctl restart cerberus-suricata.service, \
+    /usr/bin/systemctl status cerberus-suricata.service, \
+    /usr/bin/systemctl is-active cerberus-suricata.service, \
+    /usr/bin/systemctl start cerberus-snort.service, \
+    /usr/bin/systemctl stop cerberus-snort.service, \
+    /usr/bin/systemctl restart cerberus-snort.service, \
+    /usr/bin/systemctl status cerberus-snort.service, \
+    /usr/bin/systemctl is-active cerberus-snort.service
+
+cerberus ALL=(root) NOPASSWD: CERBERUS_BLOCK, CERBERUS_ENGINE

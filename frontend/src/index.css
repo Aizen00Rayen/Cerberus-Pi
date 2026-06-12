@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-ink text-slate-100 antialiased;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-panel border border-white/5 rounded-xl p-4 shadow-lg;
+  }
+  .stat {
+    @apply card flex flex-col gap-1;
+  }
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wide;
+  }
+  .badge-CRITICAL { @apply bg-sev-critical/20 text-sev-critical border border-sev-critical/40; }
+  .badge-HIGH     { @apply bg-sev-high/20 text-sev-high border border-sev-high/40; }
+  .badge-MEDIUM   { @apply bg-sev-medium/20 text-sev-medium border border-sev-medium/40; }
+  .badge-LOW      { @apply bg-sev-low/20 text-sev-low border border-sev-low/40; }
+  .badge-INFO     { @apply bg-sev-info/20 text-sev-info border border-sev-info/40; }
+  .btn {
+    @apply px-3 py-1.5 rounded-lg text-sm font-medium bg-cyan/10 text-cyan border border-cyan/30
+           hover:bg-cyan/20 transition disabled:opacity-40;
+  }
+  .btn-danger {
+    @apply px-3 py-1.5 rounded-lg text-sm font-medium bg-alert/10 text-alert border border-alert/30
+           hover:bg-alert/20 transition;
+  }
+  .mono { @apply font-mono text-xs; }
+  .th { @apply text-left text-xs uppercase tracking-wide text-slate-400 font-semibold px-3 py-2; }
+  .td { @apply px-3 py-2 text-sm border-t border-white/5; }
+}

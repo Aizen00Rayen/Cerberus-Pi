@@ -1,0 +1,22 @@
+[Unit]
+Description=Cerberus Pi — Snort 3 IDS/IPS engine (passive on eth0)
+After=network-online.target cerberus-stealth.service cerberus-logs.mount
+Wants=network-online.target
+PartOf=cerberus-ids.target
+
+[Service]
+Type=simple
+ExecStartPre=/usr/local/bin/snort -c /opt/cerberus/snort/snort.lua -T
+ExecStart=/usr/local/bin/snort -c /opt/cerberus/snort/snort.lua \
+    -i eth0 -l /opt/cerberus/logs/snort -k none -D -q
+Restart=always
+RestartSec=5
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+RuntimeDirectory=cerberus
+RuntimeDirectoryPreserve=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/cerberus/logs /run/cerberus
+
+[Install]
+WantedBy=cerberus-ids.target

@@ -1,0 +1,24 @@
+[Unit]
+Description=Cerberus Pi — Suricata IDS/IPS engine (passive on eth0)
+After=network-online.target cerberus-stealth.service cerberus-logs.mount
+Wants=network-online.target
+PartOf=cerberus-ids.target
+
+[Service]
+Type=simple
+# Passive IDS on eth0. For IPS mode, cerberus_start.sh --ips swaps in '-q 0'.
+ExecStartPre=/usr/bin/suricata -T -c /etc/suricata/suricata.yaml -v
+ExecStart=/usr/bin/suricata -c /etc/suricata/suricata.yaml --af-packet=eth0 --pidfile /run/cerberus/suricata.pid
+Restart=always
+RestartSec=5
+# Capability-scoped: needs raw sockets + admin to set promisc, but not full root.
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN CAP_SYS_NICE
+RuntimeDirectory=cerberus
+RuntimeDirectoryPreserve=yes
+# Hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/cerberus/logs /run/cerberus /var/lib/suricata
+
+[Install]
+WantedBy=cerberus-ids.target

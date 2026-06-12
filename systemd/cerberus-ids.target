@@ -1,0 +1,8 @@
+[Unit]
+Description=Cerberus Pi — IDS/IPS engines (Suricata + Snort)
+# Starting this target brings up both engines together (Phase 3.3).
+Wants=cerberus-suricata.service cerberus-snort.service
+After=cerberus-suricata.service cerberus-snort.service
+
+[Install]
+WantedBy=multi-user.target
