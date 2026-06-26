@@ -79,18 +79,30 @@ done
 # -----------------------------------------------------------------------------
 hdr "1.2  System packages"
 
-APT_PACKAGES=(
+# REQUIRED packages — the install aborts if any of these cannot be installed.
+APT_REQUIRED=(
   build-essential git curl wget unzip ca-certificates gnupg lsb-release
   python3 python3-pip python3-venv
   nodejs npm
   postgresql postgresql-contrib redis-server
-  libpcap-dev libnet1-dev libdnet-dev libpcre2-dev libpcre3-dev
+  libpcap-dev libnet1-dev libpcre2-dev
   libyaml-dev libjansson-dev zlib1g-dev
   pkg-config autoconf automake libtool
-  nmap masscan arp-scan netdiscover
-  wkhtmltopdf
+  nmap arp-scan
   ufw fail2ban
   cryptsetup           # LUKS for log encryption (Phase 2.3)
+)
+
+# OPTIONAL packages — nice to have, but the install continues if they are not
+# available on this Debian release. Notably:
+#   wkhtmltopdf   — removed from Debian 13 (trixie); WeasyPrint (pip) makes the PDFs.
+#   libpcre3-dev  — old PCRE1, dropped from trixie; libpcre2-dev (above) replaces it.
+#   libdnet-dev   — package name varies by release (also libdumbnet-dev).
+#   masscan/netdiscover — extra scanners; nmap + arp-scan cover the core needs.
+APT_OPTIONAL=(
+  wkhtmltopdf
+  libpcre3-dev libdnet-dev libdumbnet-dev
+  masscan netdiscover
 )
 
 export DEBIAN_FRONTEND=noninteractive
@@ -99,19 +111,29 @@ if ! apt-get update -y >>"$INSTALL_LOG" 2>&1; then
   die "apt-get update failed — see $INSTALL_LOG"
 fi
 
-to_install=()
-for p in "${APT_PACKAGES[@]}"; do
-  if pkg_installed "$p"; then ok "$p"; else to_install+=("$p"); fi
+# apt_install_one <pkg> : install a single package; returns non-zero on failure
+# (installing one at a time means a missing package never aborts the whole batch).
+apt_install_one() {
+  local p="$1"
+  pkg_installed "$p" && { ok "$p"; return 0; }
+  if apt-get install -y "$p" >>"$INSTALL_LOG" 2>&1 && pkg_installed "$p"; then
+    ok "installed $p"; return 0
+  fi
+  return 1
+}
+
+failed_required=()
+for p in "${APT_REQUIRED[@]}"; do
+  apt_install_one "$p" || { err "failed $p"; log_error "apt required failed: $p"; failed_required+=("$p"); }
 done
 
-if (( ${#to_install[@]} > 0 )); then
-  log "Installing: ${to_install[*]}"
-  if ! apt-get install -y "${to_install[@]}" >>"$INSTALL_LOG" 2>&1; then
-    die "apt-get install failed for: ${to_install[*]} — see $INSTALL_LOG"
-  fi
-  for p in "${to_install[@]}"; do
-    pkg_installed "$p" && ok "installed $p" || { err "failed $p"; log_error "apt failed: $p"; }
-  done
+log "Optional packages (failures are non-fatal):"
+for p in "${APT_OPTIONAL[@]}"; do
+  apt_install_one "$p" || warn "optional package unavailable on this release: $p"
+done
+
+if (( ${#failed_required[@]} > 0 )); then
+  die "Required packages failed to install: ${failed_required[*]} — see $INSTALL_LOG"
 fi
 
 # IPFS (kubo) — not in apt; fetch the ARM64 static binary.
@@ -229,8 +251,9 @@ validate "postgres"    psql --version               || rc=1
 validate "redis"       redis-server --version       || rc=1
 validate "nmap"        nmap --version               || rc=1
 validate "arp-scan"    arp-scan --version           || rc=1
-validate "wkhtmltopdf" wkhtmltopdf --version        || rc=1
 validate "ufw"         ufw --version                || rc=1
+# wkhtmltopdf is optional (absent on Debian 13); WeasyPrint handles PDF reports.
+have wkhtmltopdf && validate "wkhtmltopdf" wkhtmltopdf --version || warn "wkhtmltopdf not present — PDFs use WeasyPrint"
 have ipfs && validate "ipfs" ipfs --version || warn "ipfs not validated"
 
 if (( rc != 0 )); then
