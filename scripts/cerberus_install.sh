@@ -84,7 +84,7 @@ APT_REQUIRED=(
   build-essential git curl wget unzip ca-certificates gnupg lsb-release
   python3 python3-pip python3-venv
   nodejs npm
-  postgresql postgresql-contrib redis-server
+  postgresql redis-server
   libpcap-dev libnet1-dev libpcre2-dev
   libyaml-dev libjansson-dev zlib1g-dev
   pkg-config autoconf automake libtool
@@ -103,6 +103,7 @@ APT_OPTIONAL=(
   wkhtmltopdf
   libpcre3-dev libdnet-dev libdumbnet-dev
   masscan netdiscover
+  postgresql-contrib   # transitional/removed on Debian 13; contrib ships in postgresql-NN
 )
 
 export DEBIAN_FRONTEND=noninteractive
