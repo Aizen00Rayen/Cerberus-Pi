@@ -82,7 +82,8 @@ hdr "1.2  System packages"
 # REQUIRED packages — the install aborts if any of these cannot be installed.
 APT_REQUIRED=(
   build-essential git curl wget unzip ca-certificates gnupg lsb-release
-  python3 python3-pip python3-venv
+  python3 python3-pip python3-venv python3-dev
+  libpq-dev            # PostgreSQL headers, so psycopg2 can build if no wheel exists
   nodejs npm
   postgresql redis-server
   libpcap-dev libnet1-dev libpcre2-dev
